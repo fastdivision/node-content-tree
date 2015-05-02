@@ -3,9 +3,12 @@ var path = require('path'),
     util = require('util'),
     Q = require('q'),
     mime = require('mime'),
-    findit = require('findit');
+    findit = require('findit'),
+    fs = require('fs'),
+    fm = require('front-matter');
 
 
+//TODO split this guy into it's own module
 var ContentTree = function(contentsPath) {
   this.tree = {};
   this.contentsPath = contentsPath;
@@ -31,7 +34,13 @@ ContentTree.prototype.makeTree = function(tree, dirPath, file, stat) {
   if(currentDir in tree){
     this.makeTree(tree[currentDir], dirPath, file, stat);
   } else {
-    tree[currentDir] = stat.isFile() ? this.getFileInfo(file, stat) : {};
+    if (stat.isFile()) {
+      this.getFileInfo(file, stat).then(function(file) {
+        tree[currentDir] = file;
+      });
+    } else {
+      tree[currentDir] = {};
+    }
   }
 };
 
@@ -53,17 +62,23 @@ ContentTree.prototype.getRelativePath = function(file) {
 
 
 ContentTree.prototype.getFileInfo = function(file, stat) {
+  var dfr = Q.defer();
   var mimeType = mime.lookup(file),
       basename = path.basename(file, path.extname(file));
-  var file = {
-    path: file,
-    basename: basename,
-    stat: stat,
-    mimeType: mimeType,
-    charset: mime.charsets.lookup(mimeType)
-  };
-  this.emit('file', file);
-  return file;
+
+  fs.readFile(file, 'utf8', function(err, data) {
+    var frontMatter = fm(data).attributes;
+    var file = {
+      path: file,
+      basename: basename,
+      mimeType: mimeType,
+      frontMatter: frontMatter
+    };
+    this.emit('file', file);
+    return dfr.resolve(file);
+  }.bind(this));
+
+  return dfr.promise;
 };
 
 
