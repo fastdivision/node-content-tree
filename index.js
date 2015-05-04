@@ -20,10 +20,12 @@ ContentTree.prototype.generate = function(callback) {
   this.finder = findit.find(this.contentsPath);
   this.finder.on('path', this.fileHandler.bind(this));
   this.finder.on('end', function() {
-    dfr.resolve(this.tree);
-    if(callback){
-      callback(this.tree)
-    }
+    setTimeout(function() {
+      dfr.resolve(this.tree);
+      if(callback){
+        callback(this.tree)
+      }
+    }.bind(this), 500);
   }.bind(this));
   return dfr.promise;
 };
